@@ -34,5 +34,11 @@ if(!hasName(iotData,"mtbf")){
 # show statistical summary of data frame
 summary(iotData)
 
+## When does our equipment fail on average ?
+eqp_failed <- iotData %>% filter(has_failure == 1 & (running_hrs < 8000 & running_hrs > 2000))
+par(mfrow=c(3,1))
+boxplot(running_hrs~has_failure,data=eqp_failed, main="Failed Equipment", xlab="", ylab="Running Hours",col="#357EC7")
+boxplot(running_hrs~engineer_at_time_of_reading,data=eqp_failed, main="By Engineer", xlab="", ylab="",col="#357EC7")
+boxplot(running_hrs~equipment_category,data=eqp_failed, main="By Equipment Category", xlab="", ylab="",col="#357EC7")
 
 
