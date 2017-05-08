@@ -14,6 +14,7 @@ library(survminer)
 library(data.table)
 library(readr)
 
+# Constants to filter out outliers 
 UpperOutlier <- 2160
 LowerOutlier <- -1440
 
@@ -38,16 +39,34 @@ if(!hasName(iotPolishedData,"MTBF")){
   
   # ... yes, data is in original shape, calculating MTBF / MTTR now...
   # Calculate Mean Time Between Failures (MTBF) = (Total up time) / (number of breakdowns)
-  # Calculate Mean Time To Recover (MTTR) = (Total down time) / (number of breakdowns)
   iotPolishedData$Running_Hrs <- round(iotPolishedData$Running_Hrs / iotPolishedData$Total_Faults,0)
+  # Calculate Mean Time To Recover (MTTR) = (Total down time) / (number of breakdowns)
   iotPolishedData$Downtime <- round(iotPolishedData$Downtime / iotPolishedData$Total_Faults,0)
-  
   # Optional: If you wish you can persist your changes through following call
   write_csv(iotPolishedData, "equipment_IoT_sensor_data.csv")
   
 }
 
-filteredDataSet <- iotPolishedData # %>% filter(Category %in% c("Materials Protection and Isolation","Air Gas and Pneumatic Equipment","Hydraulics Equipment"))
+# Following are the possible Equipment Categories to choose from, just uncomment
+# the code below and remove the categories not of interest for your analysis
+filteredDataSet <- iotPolishedData[order(iotPolishedData$Running_Hrs,decreasing = TRUE ) %>% filter(Category %in% c("Automation and Control",
+    "Construction and Operation Services",
+    "Materials Protection and Isolation",
+    "Structures and Outfitting Details",
+    "Management Services",
+    "Air Gas and Pneumatic Equipment",
+    "Cooling Equipment",
+    "Tanks and Heating",
+    "Electrical",
+    "Propulsion and Manouvering",
+    "Hydraulics Equipment",
+    "Power Generation",
+    "Firefighting Equipment",
+    "Fluid Transfer and Treatment",
+    "Fabrication Equipment and Software"))]
+
+# Show all Equipment Categories instead of above
+# filteredDataSet <- iotPolishedData
 
 # Select survival regression model dependent variables.
 depVariables = Surv(filteredDataSet$Running_Hrs, filteredDataSet$Is_Faulty)
@@ -65,9 +84,13 @@ ggsurvplot(fit, filteredDataSet, risk.table = FALSE, xlab = "Running Hours")
 # Perform Prediction & Run the Forecast
 Prediction <- predict(survreg, newdata = filteredDataSet, type="quantile", p=.5)
 Forecast <- data.frame(Prediction)
-Forecast$running_hrs <- filteredDataSet$Running_Hrs
-Forecast$has_failure <- filteredDataSet$Is_Faulty
+Forecast$Running_Hrs <- filteredDataSet$Running_Hrs
+Forecast$Is_Faulty <- filteredDataSet$Is_Faulty
 Forecast$Equipment <- filteredDataSet$EQP_Code
+Forecast$MTBF <- filteredDataSet$MTBF
+Forecast$MTTR <- filteredDataSet$MTTR
+Forecast$Fault_Category <- filteredDataSet$Fault_Category
+Forecast$Technician <- filteredDataSet$Technician
 
 # Calculate Remaining Time to Failure (Time_To_Failure)
 Forecast$RTime_To_Failure <- Forecast$Prediction - filteredDataSet$Running_Hrs
