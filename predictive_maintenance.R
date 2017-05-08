@@ -1,6 +1,16 @@
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+# FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT 
+# SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE 
+# FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE, 
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+# DEALINGS IN THE SOFTWARE.
+
+#
 # Check first if the needed packages are install in the current environment
 # before using them below. 
 packages <- c("ggplot2", "ggvis", "corrplot", "survival", "survminer","data.table","SPREDA","boot","lattice", "readr")
+
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))  
 }
@@ -28,17 +38,13 @@ LowerOutlier <- -1440
 iotData <- read_csv("equipment_IoT_sensor_data.csv")
 
 # Do some renaming to shorten column names in graphs
-iotPolishedData <- rename(iotData, c("equipment_category"="Category",
-                  "engineer_at_time_of_reading"="Technician",
-                  "equipment_code"="EQP_Code",
-                  "running_hrs"="Running_Hrs",
-                  "pressureInd_kgf_cm2"="Pressure","temperature_celsius"="Temp",
-                  "vibrationInd_kHz"="Vibration",
-                  "has_failure"="Is_Faulty",
-                  "total_failure_count"="Total_Faults",
-                  "downtime_min"="Downtime",
-                  "failure_category"="Fault_Category",
-                  "mtbf"="MTBF","mttr"="MTTR"))
+colnames(iotData) <- c("Date","Time","Technician","EQP_Code","Category",
+                       "Running_Hrs", "Pressure","Temp","Vibration",
+                       "Is_Faulty","Total_Faults","Downtime","Fault_Category",
+                       "MTBF","MTTR")
+
+# Do some renaming to shorten column names in graphs
+iotPolishedData <- iotData
 
 # Check if data is in original shape...
 if(!hasName(iotPolishedData,"MTBF")){
@@ -98,8 +104,8 @@ Forecast$MTBF <- filteredDataSet$MTBF
 Forecast$MTTR <- filteredDataSet$MTTR
 Forecast$Fault_Category <- filteredDataSet$Fault_Category
 Forecast$Technician <- filteredDataSet$Technician
-Forecast$Date <- filteredDataSet$date
-Forecast$Time <- filteredDataSet$time
+Forecast$Date <- filteredDataSet$Date
+Forecast$Time <- filteredDataSet$Time
 
 # Calculate Remaining Time to Failure (Time_To_Failure)
 Forecast$RTime_To_Failure <- Forecast$Prediction - filteredDataSet$Running_Hrs
