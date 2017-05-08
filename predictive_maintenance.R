@@ -1,6 +1,6 @@
 # Check first if the needed packages are install in the current environment
 # before using them below. 
-packages <- c("ggplot2", "ggvis", "corrplot", "survival", "survminer")
+packages <- c("ggplot2", "ggvis", "corrplot", "survival", "survminer","data.table","SPREDA","boot","lattice", "readr")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))  
 }
@@ -12,7 +12,13 @@ library(corrplot)
 library(survival)
 library(survminer)
 library(data.table)
+library(SPREDA)
+library(boot)
+library(lattice)
 library(readr)
+
+
+#source("predictive_maintenance_helper.R")
 
 # Constants to filter out outliers 
 UpperOutlier <- 2160
@@ -49,21 +55,25 @@ if(!hasName(iotPolishedData,"MTBF")){
 
 # Following are the possible Equipment Categories to choose from, just uncomment
 # the code below and remove the categories not of interest for your analysis
-filteredDataSet <- iotPolishedData[order(iotPolishedData$Running_Hrs,decreasing = TRUE ) %>% filter(Category %in% c("Automation and Control",
-    "Construction and Operation Services",
+filteredDataSet <- iotPolishedData %>% filter(Category %in% 
+  c(
     "Materials Protection and Isolation",
-    "Structures and Outfitting Details",
     "Management Services",
     "Air Gas and Pneumatic Equipment",
-    "Cooling Equipment",
-    "Tanks and Heating",
-    "Electrical",
-    "Propulsion and Manouvering",
-    "Hydraulics Equipment",
-    "Power Generation",
-    "Firefighting Equipment",
-    "Fluid Transfer and Treatment",
-    "Fabrication Equipment and Software"))]
+    "Cooling Equipment"
+    # "Structures and Outfitting Details",
+    # "Automation and Control",
+    # "Construction and Operation Services",
+    # "Tanks and Heating",
+    # "Electrical",
+    # "Propulsion and Manouvering",
+    # "Hydraulics Equipment",
+    # "Power Generation",
+    # "Firefighting Equipment",
+    # "Fluid Transfer and Treatment",
+    # "Fabrication Equipment and Software"
+  )
+)
 
 # Show all Equipment Categories instead of above
 # filteredDataSet <- iotPolishedData
@@ -78,9 +88,6 @@ print(survreg)
 # Fitting the Model now
 fit <- survfit(Surv(Running_Hrs,Is_Faulty) ~ Category , data = filteredDataSet)
 
-# Show the Survival Analysis Graph
-ggsurvplot(fit, filteredDataSet, risk.table = FALSE, xlab = "Running Hours")
-
 # Perform Prediction & Run the Forecast
 Prediction <- predict(survreg, newdata = filteredDataSet, type="quantile", p=.5)
 Forecast <- data.frame(Prediction)
@@ -91,6 +98,8 @@ Forecast$MTBF <- filteredDataSet$MTBF
 Forecast$MTTR <- filteredDataSet$MTTR
 Forecast$Fault_Category <- filteredDataSet$Fault_Category
 Forecast$Technician <- filteredDataSet$Technician
+Forecast$Date <- filteredDataSet$date
+Forecast$Time <- filteredDataSet$time
 
 # Calculate Remaining Time to Failure (Time_To_Failure)
 Forecast$RTime_To_Failure <- Forecast$Prediction - filteredDataSet$Running_Hrs
@@ -99,6 +108,7 @@ Forecast$RTime_To_Failure <- Forecast$Prediction - filteredDataSet$Running_Hrs
 # Check with engineering, they might have overhault these but not updated the running hours counter
 FilteredForecastOutliers <- Forecast %>% filter(RTime_To_Failure < LowerOutlier | RTime_To_Failure > UpperOutlier)
 data.table(FilteredForecastOutliers[order(FilteredForecastOutliers$RTime_To_Failure),])
+
 
 # Selected records ignoring major outliers and time to failures well in future e.g. 90days = 2160hrs
 FilteredForecast <- Forecast %>% filter(RTime_To_Failure > LowerOutlier & RTime_To_Failure < UpperOutlier)
@@ -110,5 +120,19 @@ data.table(FilteredForecast)
 # Classify and return the maintenance / replacement candidates sorted by urgency
 FilteredForecast$class <- cut(FilteredForecast$RTime_To_Failure, c(LowerOutlier,1,4,UpperOutlier))
 levels(FilteredForecast$class) <- c('Urgent', 'Medium', 'good')
+
+# Show the Survival Analysis Graph
+ggsurvplot(fit, 
+           Forecast, 
+           xlab = "Running Hours",
+           title = "Predictive Failure Analysis",
+           legend.labs = c("Air & Gas", "Cooling", "Management", "Material"),
+           legend.title = "Equipment Categories",
+           risk.table.title = "Number of equipment at risk",
+           risk.table = T, 
+           risk.table.y.text = T,
+           risk.table.y.text.col = T)
+
+# Show the Final Statistics
 summary(FilteredForecast)
 
