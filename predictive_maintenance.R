@@ -118,8 +118,8 @@ FilteredForecast <- FilteredForecast[order(FilteredForecast$RTime_To_Failure),]
 data.table(FilteredForecast)
 
 # Classify and return the maintenance / replacement candidates sorted by urgency
-FilteredForecast$class <- cut(FilteredForecast$RTime_To_Failure, c(LowerOutlier,1,4,UpperOutlier))
-levels(FilteredForecast$class) <- c('Urgent', 'Medium', 'good')
+FilteredForecast$Priority <- cut(FilteredForecast$RTime_To_Failure, c(LowerOutlier,1,4,UpperOutlier))
+levels(FilteredForecast$Priority) <- c('Urgent', 'Medium', 'good')
 
 # Show the Survival Analysis Graph
 ggsurvplot(fit, 
